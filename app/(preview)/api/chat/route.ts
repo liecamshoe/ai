@@ -1,24 +1,27 @@
-import { getOrders, getTrackingInformation, ORDERS } from "@/components/data";
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-import { z } from "zod";
+import { getOrders, getTrackingInformation } from "@/components/data";
+import { streamText, stepCountIs } from "ai";
+import { z } from 'zod/v3';
+
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
 
   const stream = streamText({
-    model: openai("gpt-4o"),
+    model: "openai/gpt-4o",
+
     system: `\
       - you are a friendly package tracking assistant
       - your responses are concise
       - you do not ever use lists, tables, or bullet points; instead, you provide a single response
     `,
+
     messages,
-    maxSteps: 5,
+    stopWhen: stepCountIs(5),
+
     tools: {
       listOrders: {
         description: "list all orders",
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: async function ({}) {
           const orders = getOrders();
           return orders;
@@ -26,7 +29,7 @@ export async function POST(request: Request) {
       },
       viewTrackingInformation: {
         description: "view tracking information for a specific order",
-        parameters: z.object({
+        inputSchema: z.object({
           orderId: z.string(),
         }),
         execute: async function ({ orderId }) {
@@ -35,8 +38,8 @@ export async function POST(request: Request) {
           return trackingInformation;
         },
       },
-    },
+    }
   });
 
-  return stream.toDataStreamResponse();
+  return stream.toUIMessageStreamResponse();
 }

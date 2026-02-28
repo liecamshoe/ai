@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Message } from "@/components/message";
 import { useScrollToBottom } from "@/components/use-scroll-to-bottom";
 import { motion } from "framer-motion";
 import { MasonryIcon, VercelIcon } from "@/components/icons";
 import Link from "next/link";
-import { useChat } from "ai/react";
+import { useChat } from '@ai-sdk/react';
 
 export default function Home() {
-  const { messages, handleSubmit, input, setInput, append } = useChat();
+  const [input, setInput] = useState('');
+  const { messages, sendMessage } = useChat();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [messagesContainerRef, messagesEndRef] =
@@ -28,6 +29,14 @@ export default function Home() {
     },
   ];
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (input.trim()) {
+      sendMessage({ text: input });
+      setInput('');
+    }
+  };
+
   return (
     <div className="flex flex-row justify-center pb-20 h-dvh bg-white dark:bg-zinc-900">
       <div className="flex flex-col justify-between gap-4">
@@ -44,7 +53,7 @@ export default function Home() {
                   <MasonryIcon />
                 </p>
                 <p>
-                  The maxSteps parameter of streamText function allows you to
+                  The stopWhen parameter of streamText function allows you to
                   automatically handle multiple tool calls in sequence using the
                   AI SDK in your application.
                 </p>
@@ -68,9 +77,8 @@ export default function Home() {
             <Message
               key={message.id}
               role={message.role}
-              content={message.content}
-              toolInvocations={message.toolInvocations}
-            ></Message>
+              parts={message.parts}
+            />
           ))}
           <div ref={messagesEndRef} />
         </div>
@@ -86,11 +94,8 @@ export default function Home() {
                 className={index > 1 ? "hidden sm:block" : "block"}
               >
                 <button
-                  onClick={async () => {
-                    append({
-                      role: "user",
-                      content: suggestedAction.action,
-                    });
+                  onClick={() => {
+                    sendMessage({ text: suggestedAction.action });
                   }}
                   className="w-full text-left border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 rounded-lg p-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex flex-col"
                 >
