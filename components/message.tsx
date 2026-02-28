@@ -2,10 +2,10 @@
 
 import { motion } from "framer-motion";
 import { BotIcon, UserIcon } from "./icons";
-import { ReactNode } from "react";
-import { StreamableValue, useStreamableValue } from "ai/rsc";
+import { StreamableValue, useStreamableValue } from '@ai-sdk/rsc';
 import { Streamdown } from "streamdown";
-import { ToolInvocation } from "ai";
+import { isToolUIPart, getToolName } from "ai";
+import type { UIMessage } from "ai";
 import { Orders } from "./orders";
 import { Tracker } from "./tracker";
 
@@ -37,12 +37,10 @@ export const TextStreamMessage = ({
 
 export const Message = ({
   role,
-  content,
-  toolInvocations,
+  parts,
 }: {
   role: string;
-  content: string | ReactNode;
-  toolInvocations: Array<ToolInvocation> | undefined;
+  parts: UIMessage['parts'];
 }) => {
   return (
     <motion.div
@@ -55,35 +53,32 @@ export const Message = ({
       </div>
 
       <div className="flex flex-col gap-6 w-full">
-        {content && (
-          <div className="text-zinc-800 dark:text-zinc-300 flex flex-col gap-4">
-            <Streamdown>{content as string}</Streamdown>
-          </div>
-        )}
+        {parts.map((part, idx) => {
+          if (part.type === "text") {
+            if (!part.text) return null;
+            return (
+              <div key={idx} className="text-zinc-800 dark:text-zinc-300 flex flex-col gap-4">
+                <Streamdown>{part.text}</Streamdown>
+              </div>
+            );
+          }
 
-        {toolInvocations && (
-          <div className="flex flex-col gap-4">
-            {toolInvocations.map((toolInvocation) => {
-              const { toolName, toolCallId, state } = toolInvocation;
+          if (isToolUIPart(part) && part.state === "output-available") {
+            const toolName = getToolName(part);
+            const output = (part as any).output;
+            return (
+              <div key={part.toolCallId}>
+                {toolName === "listOrders" ? (
+                  <Orders orders={output} />
+                ) : toolName === "viewTrackingInformation" ? (
+                  <Tracker trackingInformation={output} />
+                ) : null}
+              </div>
+            );
+          }
 
-              if (state === "result") {
-                const { result } = toolInvocation;
-
-                return (
-                  <div key={toolCallId}>
-                    {toolName === "listOrders" ? (
-                      <Orders orders={result} />
-                    ) : toolName === "viewTrackingInformation" ? (
-                      <div key={toolCallId}>
-                        <Tracker trackingInformation={result} />
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              }
-            })}
-          </div>
-        )}
+          return null;
+        })}
       </div>
     </motion.div>
   );
