@@ -1,9 +1,21 @@
 import { getOrders, getTrackingInformation, ORDERS } from "@/components/data";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { getVercelOidcToken } from "@vercel/functions/oidc";
 import { convertToCoreMessages, streamText } from "ai";
+import { checkBotId } from "botid/server";
 import { z } from "zod";
 
 export async function POST(request: Request) {
+  const { isBot } = await checkBotId();
+  if (isBot) {
+    return new Response("Access denied", { status: 403 });
+  }
+
+  const openai = createOpenAI({
+    baseURL: "https://ai-gateway.vercel.sh/v1",
+    apiKey: await getVercelOidcToken(),
+  });
+
   const { messages } = await request.json();
 
   const stream = await streamText({
